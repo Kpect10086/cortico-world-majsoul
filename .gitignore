@@ -1,0 +1,9 @@
+node_modules/
+assets/liqi.json
+*.tgz
+*.zip
+.env*
+data/
+deployments/
+backups/
+validation.json
