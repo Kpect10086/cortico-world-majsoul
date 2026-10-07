@@ -288,10 +288,21 @@ test('Windows launcher verifies deployment and reuses an existing connected game
   const launcher = fileURLToPath(new URL('../setup/start-game.ps1', import.meta.url));
   const fixture = join(directory, 'fixture.ps1');
   await writeFile(fixture, `
-param([switch]$ObserveOnly, [switch]$WrongDeployment)
+param([switch]$ObserveOnly, [switch]$WrongDeployment, [switch]$MissingDependencies)
 $ErrorActionPreference = 'Stop'
 $global:taskCalls = @()
 function Start-Process { throw 'launcher must reuse the existing game' }
+if ($MissingDependencies) {
+  function node.exe {
+    if ($args[0] -eq '-e') { $global:LASTEXITCODE = 1; return }
+    & '${process.execPath}' @args
+  }
+  function npm.cmd {
+    if ((Get-Location).Path -ne '${extensionDir}') { throw 'dependencies must be installed inside the package directory' }
+    $global:taskCalls += @{ path = 'dependency-install'; cwd = (Get-Location).Path }
+    $global:LASTEXITCODE = 0
+  }
+}
 function Invoke-RestMethod {
   param($Uri, $Method, $ContentType, $Body, $TimeoutSec)
   $path = ([Uri]$Uri).AbsolutePath
@@ -317,6 +328,10 @@ $global:taskCalls | ConvertTo-Json -Depth 8 -Compress
   }
   const mismatch = spawnSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', fixture, '-WrongDeployment'], { encoding: 'utf8', timeout: 10000 });
   assert.notEqual(mismatch.status, 0);
+  const install = spawnSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', fixture, '-ObserveOnly', '-MissingDependencies'], { encoding: 'utf8', timeout: 10000, cwd: directory });
+  assert.equal(install.status, 0, install.stderr);
+  const installCalls = JSON.parse(install.stdout.trim().split(/\r?\n/).at(-1)!);
+  assert.equal(installCalls.find((entry: Data) => entry.path === 'dependency-install').cwd, extensionDir);
 });
 
 test('real Edge plus local game server: guarded send, ack, authoritative action, rejection, timeout, cancellation, hot permission, reconnect', { timeout: 60000 }, async () => {

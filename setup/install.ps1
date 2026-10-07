@@ -23,8 +23,11 @@ if ($LASTEXITCODE -ne 0 -or [version]$nodeVersion -lt [version]'22.15.0') { thro
 if ($LASTEXITCODE -ne 0) {
     if (-not (Get-Command npm.cmd -ErrorAction SilentlyContinue)) { throw '缺少npm，请安装包含npm的Node.js。' }
     Write-Host '正在安装扩展运行依赖……'
-    & npm.cmd install --prefix $extensionDir --omit=dev --ignore-scripts --no-audit --no-fund
-    if ($LASTEXITCODE -ne 0) { throw '扩展依赖安装失败，未启用自动操作。' }
+    Push-Location -LiteralPath $extensionDir
+    try {
+        & npm.cmd install --omit=dev --ignore-scripts --no-audit --no-fund
+        if ($LASTEXITCODE -ne 0) { throw '扩展依赖安装失败，未启用自动操作。' }
+    } finally { Pop-Location }
 }
 if (-not (Test-Path -LiteralPath (Join-Path $extensionDir 'assets\liqi.json'))) {
     Write-Host '正在从雀魂官方准备协议并校验 SHA256……'

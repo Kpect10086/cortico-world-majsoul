@@ -7,12 +7,12 @@
 | 项目 | 信息 |
 | --- | --- |
 | 作者与维护者 | [Kpect10086](https://github.com/Kpect10086) |
-| 版本 | 1.0.1 |
+| 版本 | 1.0.2 |
 | 首版打包日期 | 2026-10-07 |
 | 许可 | MIT |
 | 源码与反馈 | [GitHub 仓库](https://github.com/Kpect10086/cortico-world-majsoul) · [Issues](https://github.com/Kpect10086/cortico-world-majsoul/issues) |
 
-**Windows 下载：[最新 Release](https://github.com/Kpect10086/cortico-world-majsoul/releases/latest)**，选择附件 `cortico-world-majsoul-1.0.1.zip`。解压后先启动自己的 Cortico，再双击包内 `start-majsoul.cmd`。首次入口会安装依赖、从雀魂官方准备协议、登记扩展并请求 Cortico 重新加载。
+**Windows 下载：[最新 Release](https://github.com/Kpect10086/cortico-world-majsoul/releases/latest)**，选择附件 `cortico-world-majsoul-1.0.2.zip`。解压后先启动自己的 Cortico，再双击包内 `start-majsoul.cmd`。首次入口会安装依赖、从雀魂官方准备协议、登记扩展并请求 Cortico 重新加载。
 
 ZIP 是需要联网完成首次设置的安装包；它不包含 Node.js、Edge、Cortico 或角色配置。Release 中自动生成的 `Source code` 是源码快照，推荐下载上面指定的 ZIP 附件。npm 当前可用版本请以[注册表](https://www.npmjs.com/package/cortico-world-majsoul)为准；`1.0.0` 使用下面的旧版 npm 步骤。
 
@@ -42,7 +42,7 @@ npm.cmd run prepare:protocol
 
 ### 1. 下载并解压
 
-打开[最新 Release](https://github.com/Kpect10086/cortico-world-majsoul/releases/latest)，下载 `cortico-world-majsoul-1.0.1.zip`，解压到准备长期保留的位置。打开解压后的文件夹，确认里面有 `package.json`、`src`、`setup` 和 **`start-majsoul.cmd`**。本地扩展安装接口目前接受英文、数字和空格路径，请选不含中文的目录。
+打开[最新 Release](https://github.com/Kpect10086/cortico-world-majsoul/releases/latest)，下载 `cortico-world-majsoul-1.0.2.zip`，解压到准备长期保留的位置。打开解压后的文件夹，确认里面有 `package.json`、`src`、`setup` 和 **`start-majsoul.cmd`**。本地扩展安装接口目前接受英文、数字和空格路径，请选不含中文的目录。
 
 下面的“扩展目录”指包含这个 `package.json` 的文件夹，不是ZIP文件，也不是它的上一级目录。安装后请保留这个文件夹；本地安装会引用其中的文件。
 
@@ -57,7 +57,7 @@ npm.cmd install --ignore-scripts
 npm.cmd run prepare:protocol
 ```
 
-正常安装只需继续第3、4步。协议尚未准备时，1.0.1 仍可被 Cortico 加载；连接牌局会提示运行入口准备协议。
+正常安装只需继续第3、4步。协议尚未准备时，1.0.2 仍可被 Cortico 加载；连接牌局会提示运行入口准备协议。
 
 ### 3. 启动自己的Cortico
 
