@@ -1,5 +1,15 @@
 # `src/world.ts`：雀魂麻将 World
 
+| 项目 | 信息 |
+| --- | --- |
+| 作者与维护者 | [Kpect10086](https://github.com/Kpect10086) |
+| 版本 | 0.1.0 |
+| 首版打包日期 | 2026-10-07 |
+| 许可 | MIT |
+| 源码与反馈 | [GitHub 仓库](https://github.com/Kpect10086/cortico-world-majsoul) · [Issues](https://github.com/Kpect10086/cortico-world-majsoul/issues) |
+
+当前提供 GitHub 源码和本地安装包，尚未发布到 npm。Cortico 信息页中的发布日期、发布次数、体积与维护者来自 npm 注册表；本地安装时这些字段可能为空，GitHub 源码发布不会生成 npm 发布记录。
+
 Cortico 外部 World 扩展，通过专用 Edge 的 Liqi 消息读取公开牌局并提交版本校验的动作。支持四人立直麻将和普通三麻，默认不开启自动操作。需要 Windows、Microsoft Edge、Node.js 22.15+ 及 World API 5 的 Cortico；开发类型契约钉在 Cortico 0.1.6。
 
 ## 安装与开局
