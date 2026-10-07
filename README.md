@@ -12,7 +12,7 @@
 | 许可 | MIT |
 | 源码与反馈 | [GitHub 仓库](https://github.com/Kpect10086/cortico-world-majsoul) · [Issues](https://github.com/Kpect10086/cortico-world-majsoul/issues) |
 
-当前提供GitHub源码和本地安装包，尚未发布到npm。Cortico信息页中的发布日期、发布次数、体积与维护者来自npm注册表；本地安装时这些字段可能为空，GitHub源码发布不会生成npm发布记录。
+发布包名为 `cortico-world-majsoul`，npm版本为 `1.0.0`。包带有 `cortico-world` 检索标签，可在Cortico控制台的World扩展列表中按名字查找。也可以通过GitHub源码安装。
 
 ## 使用前准备
 
@@ -23,7 +23,20 @@
 
 本扩展提供游戏观察与操作工具。语音、Live2D和直播输出使用你原有的Cortico配置。
 
-## 第一次安装与开局
+## 从npm安装
+
+在Cortico控制台的“扩展 → World”中搜索 `cortico-world-majsoul` 并安装。安装完成后，先准备游戏协议，再重启Cortico。npm包不包含游戏协议资源；跳过这一步会导致扩展加载失败。
+
+在PowerShell中执行，将路径换成自己的Cortico框架目录：
+
+```powershell
+Set-Location "<Cortico框架目录>\extensions\node_modules\cortico-world-majsoul"
+npm.cmd run prepare:protocol
+```
+
+如果设置过 `CORTICO_EXTENSIONS_DIR`，将上述 `extensions` 路径换成该配置的扩展目录。协议准备成功后，按原来的方式重启Cortico；继续下面第3步确认框架和部署目录，再从这个npm包目录运行 `start-majsoul.cmd`。
+
+## 从GitHub源码安装与开局
 
 ### 1. 下载源码
 
@@ -112,7 +125,7 @@ npm.cmd run prepare:protocol
 | 回执为 `unknown` | 动作可能已经执行，先读取最新状态，不要自动重发同一个动作。                              |
 | 提示浏览器端口属于其他浏览器 | 在雀魂 World配置中选择未占用的“专用 Edge 调试端口”，重建World使端口配置生效后重新运行入口。    |
 | 包目录移动后无法加载 | 在控制台重新登记新的本地扩展目录，再重启Cortico；保留原有部署数据。                      |
-| 信息页发布日期、体积或维护者为空 | 当前包尚未发布到npm，这些字段没有注册表数据；作者和版本见上方信息表。                       |
+| 信息页发布日期、体积或维护者为空 | 这些字段来自npm注册表；检查网络并刷新扩展列表，作者和版本也可查看上方信息表。 |
 
 ## 接口与限制
 
