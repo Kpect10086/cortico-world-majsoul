@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createServer } from 'node:http';
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { chromium } from 'playwright-core';
@@ -15,6 +15,24 @@ import { GameBrowser, ActionUncertainError } from '../src/browser.ts';
 import { MajsoulWorld } from '../src/world.ts';
 import { MAJSOUL_CONFIG_GROUP, MAJSOUL_DEFAULTS } from '../src/config.ts';
 import { analyzeHand } from '../src/hand.ts';
+
+test('extension loads without a downloaded protocol and connection explains how to prepare it', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'majsoul-package-test-'));
+  try {
+    await cp(fileURLToPath(new URL('../src', import.meta.url)), join(directory, 'src'), { recursive: true });
+    await writeFile(join(directory, 'package.json'), '{"type":"module"}');
+    await symlink(fileURLToPath(new URL('../node_modules', import.meta.url)), join(directory, 'node_modules'), 'junction');
+    const entry = pathToFileURL(join(directory, 'src/index.ts')).href;
+    const browser = new URL('./browser.ts', entry).href;
+    const script = `import assert from 'node:assert/strict';
+      const { default: definition } = await import(${JSON.stringify(entry)});
+      assert.equal(definition.id, 'majsoul');
+      const { GameBrowser } = await import(${JSON.stringify(browser)});
+      await assert.rejects(new GameBrowser(() => false).connect('http://127.0.0.1:1', 'https://game.maj-soul.com/1/'), /start-majsoul\\.cmd/);`;
+    const result = spawnSync(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', script], { encoding: 'utf8', timeout: 10000 });
+    assert.equal(result.status, 0, result.stderr);
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
 
 test('console dispatches game state and connect through the World contract', async () => {
   const cfg = { ...MAJSOUL_DEFAULTS };
@@ -265,6 +283,8 @@ test('Windows launcher verifies deployment and reuses an existing connected game
   const schema = fileURLToPath(new URL('../assets/liqi.json', import.meta.url));
   assert.ok((await readFile(schema)).length > 0);
   const digest = createHash('sha256').update(join(deployment, 'data')).digest('hex');
+  const extensionDir = fileURLToPath(new URL('../', import.meta.url)).replace(/[\\/]$/, '');
+  const packageVersion = JSON.parse(await readFile(join(extensionDir, 'package.json'), 'utf8')).version;
   const launcher = fileURLToPath(new URL('../setup/start-game.ps1', import.meta.url));
   const fixture = join(directory, 'fixture.ps1');
   await writeFile(fixture, `
@@ -277,6 +297,7 @@ function Invoke-RestMethod {
   $path = ([Uri]$Uri).AbsolutePath
   if ($path -eq '/api/run/lifecycle') { return @{ deployment = $(if ($WrongDeployment) { 'other' } else { '${digest}' }); ready = $true; bootId = 'fixture' } }
   if ($path -eq '/api/console/manifest') { return @{ providers = @(@{ id = 'world:majsoul'; availability = 'active' }) } }
+  if ($path -eq '/api/extensions') { return @{ dir = '${directory}'; extensions = @(@{ name = 'cortico-world-majsoul'; spec = 'link:${extensionDir}'; installedVersion = '${packageVersion}'; state = 'loaded' }) } }
   if ($path -eq '/api/worlds') { return @{ worlds = @(@{ id = 'majsoul'; prefixDrifted = $true }) } }
   if ($path -eq '/api/console/providers/world%3Amajsoul/panels/game/state' -or $path -eq '/api/console/providers/world:majsoul/panels/game/state') { return @{ connected = $true } }
   if ($Method -eq 'Post' -and $path -in @('/api/config', '/api/worlds/visibility', '/api/session/reload-prefix', '/api/run/resume')) {

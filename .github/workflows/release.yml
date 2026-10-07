@@ -1,0 +1,45 @@
+name: Release download packages
+on:
+  push:
+    branches: [main]
+    paths: [package.json, .github/workflows/release.yml]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run prepare:protocol
+      - run: npm test
+      - run: npm run typecheck
+  release:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Package and publish downloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p "require('./package.json').version")
+          zip="cortico-world-majsoul-$version.zip"
+          git archive --format=zip --prefix=cortico-world-majsoul/ -o "$zip" HEAD
+          npm pack --ignore-scripts --json > pack.json
+          node -e "const assert = require('node:assert/strict'); const files = new Set(require('./pack.json')[0].files.map(f => f.path)); for (const path of ['start-majsoul.cmd', 'setup/start-game.ps1', 'setup/install.ps1', 'setup/fetch-protocol.mjs', 'src/ENV_PROMPT.md']) assert.ok(files.has(path), 'Missing package file: ' + path)"
+          sha256sum "$zip" "cortico-world-majsoul-$version.tgz" > SHA256SUMS.txt
+          printf '%s\n' 'Windows：下载并解压 ZIP，先启动 Cortico，再双击 start-majsoul.cmd。入口询问框架与部署目录，并自动安装依赖、准备协议。需要 Node.js 22.15+ 与 Microsoft Edge。' '' '详见包内 README.md。ZIP 与 npm 包均包含启动 CMD 和 setup 脚本。' > release-notes.txt
+          if gh release view "v$version" > /dev/null 2>&1; then
+            gh release upload "v$version" "$zip" "cortico-world-majsoul-$version.tgz" SHA256SUMS.txt --clobber
+          else
+            gh release create "v$version" "$zip" "cortico-world-majsoul-$version.tgz" SHA256SUMS.txt --target "$GITHUB_SHA" --title "雀魂 World $version" --notes-file release-notes.txt
+          fi

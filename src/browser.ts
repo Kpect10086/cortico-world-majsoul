@@ -4,7 +4,7 @@ import { dirname } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium, type Browser, type Page, type Frame } from 'playwright-core';
 import { installHook } from './browser-hook.ts';
-import { action, decode, request, response, unpack, type Data } from './protocol.ts';
+import { action, decode, loadProtocol, request, response, unpack, type Data } from './protocol.ts';
 import { GameState, commandFor, type Observation, type ActionRequest } from './state.ts';
 
 export class ActionUncertainError extends Error {}
@@ -30,6 +30,7 @@ export class GameBrowser {
   snapshot(): Observation { return this.state.snapshot(); }
   private publish(): void { this.onState?.(this.snapshot()); }
   async connect(endpoint: string, url: string, navigate = true): Promise<void> {
+    loadProtocol();
     if (this.connecting) return this.connecting;
     if (navigate && this.browser?.isConnected() && this.page && !this.page.isClosed() && this.socket === null) return;
     this.connecting = this.attach(endpoint, url, navigate).finally(() => { this.connecting = undefined; });

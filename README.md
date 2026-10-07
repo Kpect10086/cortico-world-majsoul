@@ -7,12 +7,14 @@
 | 项目 | 信息 |
 | --- | --- |
 | 作者与维护者 | [Kpect10086](https://github.com/Kpect10086) |
-| 版本 | 1.0 |
+| 版本 | 1.0.1 |
 | 首版打包日期 | 2026-10-07 |
 | 许可 | MIT |
 | 源码与反馈 | [GitHub 仓库](https://github.com/Kpect10086/cortico-world-majsoul) · [Issues](https://github.com/Kpect10086/cortico-world-majsoul/issues) |
 
-发布包名为 `cortico-world-majsoul`，npm版本为 `1.0.0`。包带有 `cortico-world` 检索标签，可在Cortico控制台的World扩展列表中按名字查找。也可以通过GitHub源码安装。
+**Windows 下载：[最新 Release](https://github.com/Kpect10086/cortico-world-majsoul/releases/latest)**，选择附件 `cortico-world-majsoul-1.0.1.zip`。解压后先启动自己的 Cortico，再双击包内 `start-majsoul.cmd`。首次入口会安装依赖、从雀魂官方准备协议、登记扩展并请求 Cortico 重新加载。
+
+ZIP 是需要联网完成首次设置的安装包；它不包含 Node.js、Edge、Cortico 或角色配置。Release 中自动生成的 `Source code` 是源码快照，推荐下载上面指定的 ZIP 附件。npm 当前可用版本请以[注册表](https://www.npmjs.com/package/cortico-world-majsoul)为准；`1.0.0` 使用下面的旧版 npm 步骤。
 
 ## 使用前准备
 
@@ -23,7 +25,7 @@
 
 本扩展提供游戏观察与操作工具。语音、Live2D和直播输出使用你原有的Cortico配置。
 
-## 从npm安装
+## 已安装 npm 1.0.0 的用户
 
 在Cortico控制台的“扩展 → World”中搜索 `cortico-world-majsoul` 并安装。安装完成后，先准备游戏协议，再重启Cortico。npm包不包含游戏协议资源；跳过这一步会导致扩展加载失败。
 
@@ -36,24 +38,26 @@ npm.cmd run prepare:protocol
 
 如果设置过 `CORTICO_EXTENSIONS_DIR`，将上述 `extensions` 路径换成该配置的扩展目录。协议准备成功后，按原来的方式重启Cortico；继续下面第3步确认框架和部署目录，再从这个npm包目录运行 `start-majsoul.cmd`。
 
-## 从GitHub源码安装与开局
+## 从 Release 安装与开局
 
-### 1. 下载源码
+### 1. 下载并解压
 
-打开[GitHub 仓库](https://github.com/Kpect10086/cortico-world-majsoul)，点击绿色 **Code → Download ZIP**，解压到准备长期保留的位置。打开解压后的文件夹，确认里面有 `package.json`、`src`、`setup` 和 `start-majsoul.cmd`。
+打开[最新 Release](https://github.com/Kpect10086/cortico-world-majsoul/releases/latest)，下载 `cortico-world-majsoul-1.0.1.zip`，解压到准备长期保留的位置。打开解压后的文件夹，确认里面有 `package.json`、`src`、`setup` 和 **`start-majsoul.cmd`**。本地扩展安装接口目前接受英文、数字和空格路径，请选不含中文的目录。
 
 下面的“扩展目录”指包含这个 `package.json` 的文件夹，不是ZIP文件，也不是它的上一级目录。安装后请保留这个文件夹；本地安装会引用其中的文件。
 
-### 2. 安装依赖并准备协议
+### 2. 首次设置由入口完成
 
-在扩展文件夹中打开PowerShell，执行以下命令。也可以先用 `Set-Location "<扩展目录>"` 进入该目录；把尖括号中的内容换成你的实际路径。
+无需手动执行 npm 命令。下面第4步的入口会检查 Node.js 版本，补齐缺少的运行依赖，下载协议并核对 SHA256。首次设置需要能访问 npm 注册表和雀魂官方资源；失败会停止并显示错误。
+
+开发者使用 **Code → Download ZIP** 或 Git 克隆时也能使用同一入口。需要自行准备开发环境和运行测试时，在包含 `package.json` 的扩展目录执行：
 
 ```powershell
 npm.cmd install --ignore-scripts
 npm.cmd run prepare:protocol
 ```
 
-两条命令都成功后，扩展目录中应出现 `node_modules` 和 `assets/liqi.json`。协议准备脚本会从雀魂官方公开地址下载指定版本的协议定义，并核对SHA256；下载失败或校验不符时请先处理错误，再继续安装。
+正常安装只需继续第3、4步。协议尚未准备时，1.0.1 仍可被 Cortico 加载；连接牌局会提示运行入口准备协议。
 
 ### 3. 启动自己的Cortico
 
@@ -68,13 +72,13 @@ npm.cmd run prepare:protocol
 
 ### 4. 运行游戏入口
 
-仍在扩展目录的PowerShell中执行，把两个路径占位符换成刚才确认的实际目录：
+**直接双击 `start-majsoul.cmd`**，根据提示粘贴框架目录和当前部署目录，按回车。入口会自动完成第2步；不要在 ZIP 内直接运行。也可在扩展目录的 PowerShell 中执行以下命令，把两个路径占位符换成实际目录：
 
 ```powershell
 .\start-majsoul.cmd -FrameworkDir "<Cortico框架目录>" -DeploymentDir "<当前Bot部署目录>"
 ```
 
-这个入口会登记尚未安装的扩展、启用雀魂 World、打开“允许操作当前牌局”、让角色能看到该World、连接专用Edge浏览器，并恢复角色运行。**运行这个入口表示允许角色操作牌局。** 扩展本身的默认操作权限是关闭的。
+这个入口会登记当前包所在目录、启用雀魂 World、打开“允许操作当前牌局”、让角色能看到该World、连接专用Edge浏览器，并恢复角色运行。**运行这个入口表示允许角色操作牌局。** 扩展本身的默认操作权限是关闭的。只旁观时使用下方 `-ObserveOnly` 命令。
 
 首次安装需要Cortico进程重新加载扩展。如果你原来的启动方式带有受监督启动器，入口会请求重启一次；如果提示需手动重启，就按原来的方式重启Cortico，再执行入口。刷新控制台网页不能加载新扩展代码。
 
@@ -104,18 +108,20 @@ npm.cmd run prepare:protocol
 
 ## 日常使用与暂停
 
-- **再次启动：** 启动自己的Cortico后，再执行同一条 `start-majsoul.cmd` 命令。已有连接会被复用。
+- **再次启动：** 启动自己的Cortico后，双击 `start-majsoul.cmd` 输入目录，或执行同一条带目录参数的命令。已有连接会被复用。
 - **局间确认：** 回合结算或整场结束需要点击确认时，由你操作。登录、建房和匹配同样由你完成。
 - **暂停代打：** 在“雀魂麻将”World 配置中关闭“允许操作当前牌局”，即时生效。也可使用 `-ObserveOnly` 入口切换为旁观。
 - **断线：** 先查看连接状态；角色的 `majsoul_reconnect` 会重新附着桥接并等待客户端认证，不刷新游戏页面。不要连续刷新或反复重发结果未知的动作。
 - **停用：** 在控制台停用雀魂 World，已有游戏浏览器会保留。
-- **更新源码：** 保留自己的部署配置与浏览器资料，更新扩展文件、重新准备所需协议，然后重启Cortico进程加载新代码。只有控制台页面刷新不会重新导入扩展。
+- **更新 Release：** 解压新版到英文路径，启动自己的 Cortico，再运行新版 `start-majsoul.cmd`。入口会登记新版目录并请求重启加载；部署配置与浏览器资料保留在原部署目录。没有受监督启动器时，按提示手动重启 Cortico，再执行入口。
 
 ## 常见问题
 
 | 现象 | 检查方式                                                       |
 | --- |------------------------------------------------------------|
 | `npm.cmd` 或Node命令找不到 | 确认已安装Node.js与npm，重新打开PowerShell后再执行。                       |
+| Node版本过低 | 执行 `node -v` 核对实际版本；安装22.15或以上后，检查PATH或Nodist是否仍选择旧版Node。 |
+| 下载后没有 `start-majsoul.cmd` | 重新下载 Release 的版本 ZIP 附件并完整解压，不要使用旧缓存或只下载单个源码文件。 |
 | 提示先准备协议、协议下载失败或SHA256不匹配 | 回到扩展目录重新运行 `npm.cmd run prepare:protocol`，检查网络和错误信息；校验失败时不要跳过检查。 |
 | 控制台连接失败 | 先启动Cortico，确认控制台可访问；非默认端口传入正确的 `-ConsoleUrl`。              |
 | 提示“当前控制台不是指定部署” | 检查 `DeploymentDir` 是否为这个控制台实际运行的部署，不要通过修改身份校验绕过错误。         |

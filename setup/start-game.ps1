@@ -1,10 +1,15 @@
 ﻿param(
-    [Parameter(Mandatory = $true)][string]$FrameworkDir,
-    [Parameter(Mandatory = $true)][string]$DeploymentDir,
+    [string]$FrameworkDir,
+    [string]$DeploymentDir,
     [string]$ConsoleUrl = 'http://127.0.0.1:7788',
     [switch]$ObserveOnly
 )
 $ErrorActionPreference = 'Stop'
+if (-not $FrameworkDir) { $FrameworkDir = Read-Host 'Cortico框架根目录（包含框架package.json）' }
+if (-not $DeploymentDir) { $DeploymentDir = Read-Host '当前Bot部署目录（不要填deployments父目录）' }
+if (-not $FrameworkDir -or -not $DeploymentDir) { throw '框架目录和部署目录不能为空。' }
+$FrameworkDir = $FrameworkDir.Trim().Trim('"')
+$DeploymentDir = $DeploymentDir.Trim().Trim('"')
 & (Join-Path $PSScriptRoot 'install.ps1') -FrameworkDir $FrameworkDir -DeploymentDir $DeploymentDir -ConsoleUrl $ConsoleUrl -RestartCortico
 function Post-Console($path, $body) { Invoke-RestMethod -Uri "$ConsoleUrl$path" -Method Post -ContentType 'application/json' -Body ($body | ConvertTo-Json -Depth 8 -Compress) -TimeoutSec 90 }
 $manifest = Invoke-RestMethod -Uri "$ConsoleUrl/api/console/manifest" -TimeoutSec 10
