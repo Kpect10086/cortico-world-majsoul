@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createServer } from 'node:http';
-import { cp, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -278,7 +278,7 @@ test('duplicate actions are ignored and missing steps fail before state mutation
 });
 
 test('Windows launcher verifies deployment and reuses an existing connected game without starting processes', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'majsoul-launcher-test-'));
+  const directory = await realpath(await mkdtemp(join(tmpdir(), 'majsoul-launcher-test-')));
   const deployment = join(directory, 'deployment');
   const schema = fileURLToPath(new URL('../assets/liqi.json', import.meta.url));
   assert.ok((await readFile(schema)).length > 0);
