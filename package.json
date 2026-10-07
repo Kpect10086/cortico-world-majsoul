@@ -3,6 +3,15 @@
   "version": "0.1.0",
   "type": "module",
   "description": "雀魂网页公开牌局、版本校验和动作回执",
+  "author": "Kpect10086",
+  "homepage": "https://github.com/Kpect10086/cortico-world-majsoul#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kpect10086/cortico-world-majsoul.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Kpect10086/cortico-world-majsoul/issues"
+  },
   "license": "MIT",
   "main": "./src/index.ts",
   "keywords": [
