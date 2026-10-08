@@ -7,14 +7,14 @@
 | 项目 | 信息 |
 | --- | --- |
 | 作者与维护者 | [Kpect10086](https://github.com/Kpect10086) |
-| 版本 | 1.0.2 |
+| 版本 | 1.0.3 |
 | 首版打包日期 | 2026-10-07 |
 | 许可 | MIT |
 | 源码与反馈 | [GitHub 仓库](https://github.com/Kpect10086/cortico-world-majsoul) · [Issues](https://github.com/Kpect10086/cortico-world-majsoul/issues) |
 
-**Windows 下载：[最新 Release](https://github.com/Kpect10086/cortico-world-majsoul/releases/latest)**，选择附件 `cortico-world-majsoul-1.0.2.zip`。解压后先启动自己的 Cortico，再双击包内 `start-majsoul.cmd`。首次入口会安装依赖、从雀魂官方准备协议、登记扩展并请求 Cortico 重新加载。
+**Windows 下载：[最新 Release](https://github.com/Kpect10086/cortico-world-majsoul/releases/latest)**，选择附件 `cortico-world-majsoul-1.0.3.zip`。解压后先启动自己的 Cortico，再双击包内 `start-majsoul.cmd`。首次入口会安装依赖、从雀魂官方准备协议、登记扩展并请求 Cortico 重新加载。
 
-ZIP 是需要联网完成首次设置的安装包；它不包含 Node.js、Edge、Cortico 或角色配置。Release 中自动生成的 `Source code` 是源码快照，推荐下载上面指定的 ZIP 附件。npm 当前可用版本请以[注册表](https://www.npmjs.com/package/cortico-world-majsoul)为准；`1.0.0` 使用下面的旧版 npm 步骤。
+ZIP 是需要联网完成首次设置的安装包；它不包含 Node.js、Edge、Cortico 或角色配置。Release 中自动生成的 `Source code` 是源码快照，推荐下载上面指定的 ZIP 附件。也可直接在 Cortico 控制台搜索安装 npm 包 `cortico-world-majsoul`；包内同样包含启动入口。
 
 ## 使用前准备
 
@@ -25,7 +25,15 @@ ZIP 是需要联网完成首次设置的安装包；它不包含 Node.js、Edge�
 
 本扩展提供游戏观察与操作工具。语音、Live2D和直播输出使用你原有的Cortico配置。
 
-## 已安装 npm 1.0.0 的用户
+## 从 Cortico 控制台安装（推荐）
+
+在 Cortico 控制台的“扩展 → World”中搜索 **`cortico-world-majsoul`**，安装或更新到 **1.0.3**，然后按原有方式重启 Cortico。
+
+打开已安装的扩展目录，双击 **`start-majsoul.cmd`**，根据提示输入框架和当前部署目录。默认目录为 `<Cortico框架目录>\extensions\node_modules\cortico-world-majsoul`；设置了 `CORTICO_EXTENSIONS_DIR` 时，在该扩展目录下的 `node_modules\cortico-world-majsoul` 中找到入口。接着按下面第5步登录并开局。
+
+npm 安装会补齐运行依赖；入口会准备并校验缺少的雀魂协议、启用 World、打开专用 Edge。无需手动执行 `prepare:protocol`。运行入口表示允许角色操作当前牌局；只旁观时在 PowerShell 中运行 `start-majsoul.cmd` 并传入 `-ObserveOnly`，完整命令见下方第4步。该入口启动雀魂连接，Cortico 仍需先由你的原有启动方式运行。
+
+### 仍使用 npm 1.0.0
 
 在Cortico控制台的“扩展 → World”中搜索 `cortico-world-majsoul` 并安装。安装完成后，先准备游戏协议，再重启Cortico。npm包不包含游戏协议资源；跳过这一步会导致扩展加载失败。
 
@@ -42,7 +50,7 @@ npm.cmd run prepare:protocol
 
 ### 1. 下载并解压
 
-打开[最新 Release](https://github.com/Kpect10086/cortico-world-majsoul/releases/latest)，下载 `cortico-world-majsoul-1.0.2.zip`，解压到准备长期保留的位置。打开解压后的文件夹，确认里面有 `package.json`、`src`、`setup` 和 **`start-majsoul.cmd`**。本地扩展安装接口目前接受英文、数字和空格路径，请选不含中文的目录。
+打开[最新 Release](https://github.com/Kpect10086/cortico-world-majsoul/releases/latest)，下载 `cortico-world-majsoul-1.0.3.zip`，解压到准备长期保留的位置。打开解压后的文件夹，确认里面有 `package.json`、`src`、`setup` 和 **`start-majsoul.cmd`**。本地扩展安装接口目前接受英文、数字和空格路径，请选不含中文的目录。
 
 下面的“扩展目录”指包含这个 `package.json` 的文件夹，不是ZIP文件，也不是它的上一级目录。安装后请保留这个文件夹；本地安装会引用其中的文件。
 
@@ -57,7 +65,7 @@ npm.cmd install --ignore-scripts
 npm.cmd run prepare:protocol
 ```
 
-正常安装只需继续第3、4步。协议尚未准备时，1.0.2 仍可被 Cortico 加载；连接牌局会提示运行入口准备协议。
+正常安装只需继续第3、4步。协议尚未准备时，1.0.3 仍可被 Cortico 加载；连接牌局会提示运行入口准备协议。
 
 ### 3. 启动自己的Cortico
 
