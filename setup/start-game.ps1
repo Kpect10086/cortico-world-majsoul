@@ -12,14 +12,14 @@ $FrameworkDir = $FrameworkDir.Trim().Trim('"')
 $DeploymentDir = $DeploymentDir.Trim().Trim('"')
 & (Join-Path $PSScriptRoot 'install.ps1') -FrameworkDir $FrameworkDir -DeploymentDir $DeploymentDir -ConsoleUrl $ConsoleUrl -RestartCortico
 function Post-Console($path, $body) { Invoke-RestMethod -Uri "$ConsoleUrl$path" -Method Post -ContentType 'application/json' -Body ($body | ConvertTo-Json -Depth 8 -Compress) -TimeoutSec 90 }
-$manifest = Invoke-RestMethod -Uri "$ConsoleUrl/api/console/manifest" -TimeoutSec 10
+$manifest = Invoke-RestMethod -Uri "$ConsoleUrl/api/webui/manifest" -TimeoutSec 10
 $world = $manifest.providers | Where-Object id -eq 'world:majsoul'
 if ($world.availability -ne 'active') { Post-Console '/api/worlds/activation' @{ id = 'majsoul'; enabled = $true } | Out-Null }
 Post-Console '/api/config' @{ group = 'world:majsoul'; values = @{ 'worlds.majsoul.allowActions' = -not $ObserveOnly } } | Out-Null
 Post-Console '/api/worlds/visibility' @{ id = 'majsoul'; visible = $true } | Out-Null
 $worldStates = Invoke-RestMethod -Uri "$ConsoleUrl/api/worlds" -TimeoutSec 10
 if (($worldStates.worlds | Where-Object id -eq 'majsoul').prefixDrifted) { Post-Console '/api/session/reload-prefix' @{} | Out-Null }
-$stateUrl = "$ConsoleUrl/api/console/providers/world%3Amajsoul/panels/game/state"
+$stateUrl = "$ConsoleUrl/api/webui/providers/world%3Amajsoul/panels/game/state"
 $state = Invoke-RestMethod -Uri $stateUrl -TimeoutSec 10
 if ($state.connected) {
     if (-not $ObserveOnly) { Post-Console '/api/run/resume' @{} | Out-Null }
@@ -51,7 +51,7 @@ do {
     Start-Sleep -Milliseconds 250
 } while ((Get-Date) -lt $deadline)
 if (-not $debugReady) { throw '专用 Edge 调试接口没有就绪，不会重复启动。' }
-Post-Console '/api/console/providers/world%3Amajsoul/panels/game/connect' @{} | Out-Null
+Post-Console '/api/webui/providers/world%3Amajsoul/panels/game/connect' @{} | Out-Null
 if (-not $ObserveOnly) { Post-Console '/api/run/resume' @{} | Out-Null }
 if ($ObserveOnly) { Write-Host '观察模式已连接，你可以手动游玩。' }
 else { Write-Host '请在专用 Edge 手动登录，先开友人房加 CPU。开局后bot接手出牌；局间确认由你点击。' }

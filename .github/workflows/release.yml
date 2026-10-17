@@ -34,8 +34,8 @@ jobs:
           version=$(node -p "require('./package.json').version")
           zip="cortico-world-majsoul-$version.zip"
           git archive --format=zip --prefix=cortico-world-majsoul/ -o "$zip" HEAD
-          npm pack --ignore-scripts --json > pack.json
-          node -e "const assert = require('node:assert/strict'); const files = new Set(require('./pack.json')[0].files.map(f => f.path)); for (const path of ['start-majsoul.cmd', 'setup/start-game.ps1', 'setup/install.ps1', 'setup/fetch-protocol.mjs', 'src/ENV_PROMPT.md']) assert.ok(files.has(path), 'Missing package file: ' + path)"
+          npm pack --ignore-scripts --json --os=win32 > pack.json
+          node -e "const assert = require('node:assert/strict'); const files = new Set(require('./pack.json')[0].files.map(f => f.path)); for (const path of ['start-majsoul.cmd', 'setup/start-game.ps1', 'setup/install.ps1', 'setup/fetch-protocol.mjs', 'src/ENV_PROMPT.md', 'src/webui/client.js', 'describe.json', 'CHANGELOG.md']) assert.ok(files.has(path), 'Missing package file: ' + path)"
           sha256sum "$zip" "cortico-world-majsoul-$version.tgz" > SHA256SUMS.txt
           printf '%s\n' 'Windows：下载并解压 ZIP，先启动 Cortico，再双击 start-majsoul.cmd。入口询问框架与部署目录，并自动安装依赖、准备协议。需要 Node.js 22.15+ 与 Microsoft Edge。' '' '详见包内 README.md。ZIP 与 npm 包均包含启动 CMD 和 setup 脚本。' > release-notes.txt
           if gh release view "v$version" > /dev/null 2>&1; then

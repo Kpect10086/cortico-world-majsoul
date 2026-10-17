@@ -1,6 +1,6 @@
 {
   "name": "cortico-world-majsoul",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "type": "module",
   "description": "雀魂网页公开牌局、版本校验和动作回执",
   "author": "Kpect10086",
@@ -22,8 +22,18 @@
   },
   "cortico": {
     "kind": "world",
-    "api": 5,
-    "displayName": "雀魂麻将"
+    "api": 6,
+    "displayName": "雀魂麻将",
+    "webUiClient": "src/webui/client.js",
+    "describe": "describe.json",
+    "tags": [
+      "game",
+      "browser",
+      "external-setup",
+      "requires-key",
+      "high-cost",
+      "unofficial-api"
+    ]
   },
   "files": [
     "src/*.ts",
@@ -33,7 +43,10 @@
     "setup/fetch-protocol.mjs",
     "start-majsoul.cmd",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "src/webui/client.js",
+    "describe.json",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "test": "tsx --test tests/game.test.ts",
@@ -51,6 +64,9 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "ws": "^8.18.0",
-    "cortico": "0.1.6"
-  }
+    "cortico": "0.2.2"
+  },
+  "os": [
+    "win32"
+  ]
 }

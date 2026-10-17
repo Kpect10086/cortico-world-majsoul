@@ -14,6 +14,9 @@ import { GameState, commandFor } from '../src/state.ts';
 import { GameBrowser, ActionUncertainError } from '../src/browser.ts';
 import { MajsoulWorld } from '../src/world.ts';
 import { MAJSOUL_CONFIG_GROUP, MAJSOUL_DEFAULTS } from '../src/config.ts';
+import { runInNewContext } from 'node:vm';
+import MAJSOUL from '../src/definition.ts';
+import { installHook } from '../src/browser-hook.ts';
 import { analyzeHand } from '../src/hand.ts';
 
 test('extension loads without a downloaded protocol and connection explains how to prepare it', async () => {
@@ -34,10 +37,10 @@ test('extension loads without a downloaded protocol and connection explains how 
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
 
-test('console dispatches game state and connect through the World contract', async () => {
+test('WebUI dispatches game state and connect through the World contract', async () => {
   const cfg = { ...MAJSOUL_DEFAULTS };
   const world = new MajsoulWorld({ cfg, dataDir: join(tmpdir(), 'majsoul-interface-test') } as ConstructorParameters<typeof MajsoulWorld>[0]);
-  const panel = world.console();
+  const panel = world.webUi();
   assert.equal(typeof panel.invoke, 'function');
   assert.deepEqual(await panel.invoke!('game', 'state', []), world.status());
   cfg.allowActions = true;
@@ -307,10 +310,10 @@ function Invoke-RestMethod {
   param($Uri, $Method, $ContentType, $Body, $TimeoutSec)
   $path = ([Uri]$Uri).AbsolutePath
   if ($path -eq '/api/run/lifecycle') { return @{ deployment = $(if ($WrongDeployment) { 'other' } else { '${digest}' }); ready = $true; bootId = 'fixture' } }
-  if ($path -eq '/api/console/manifest') { return @{ providers = @(@{ id = 'world:majsoul'; availability = 'active' }) } }
+  if ($path -eq '/api/webui/manifest') { return @{ providers = @(@{ id = 'world:majsoul'; availability = 'active' }) } }
   if ($path -eq '/api/extensions') { return @{ dir = '${directory}'; extensions = @(@{ name = 'cortico-world-majsoul'; spec = 'link:${extensionDir}'; installedVersion = '${packageVersion}'; state = 'loaded' }) } }
   if ($path -eq '/api/worlds') { return @{ worlds = @(@{ id = 'majsoul'; prefixDrifted = $true }) } }
-  if ($path -eq '/api/console/providers/world%3Amajsoul/panels/game/state' -or $path -eq '/api/console/providers/world:majsoul/panels/game/state') { return @{ connected = $true } }
+  if ($path -eq '/api/webui/providers/world%3Amajsoul/panels/game/state' -or $path -eq '/api/webui/providers/world:majsoul/panels/game/state') { return @{ connected = $true } }
   if ($Method -eq 'Post' -and $path -in @('/api/config', '/api/worlds/visibility', '/api/session/reload-prefix', '/api/run/resume')) {
     $global:taskCalls += @{ path = $path; body = $Body | ConvertFrom-Json }; return @{ ok = $true }
   }
@@ -544,4 +547,44 @@ test('real Edge plus local game server: guarded send, ack, authoritative action,
     await new Promise<void>(resolve => sockets.close(() => resolve()));
     await new Promise<void>(resolve => server.close(() => resolve()));
   }
+});
+
+
+test('market description covers the runtime tools and WebUI prompt', async () => {
+  const world = MAJSOUL.create({ cfg: MAJSOUL.defaults(), dataDir: tmpdir() } as ConstructorParameters<typeof MajsoulWorld>[0]);
+  const declared = MAJSOUL.describe!.tools;
+  for (const tool of world.tools!()) {
+    const spec = declared.find(item => item.name === tool.name);
+    assert.ok(spec, tool.name);
+    assert.deepEqual(spec.parameters, tool.parameters);
+  }
+  assert.ok(MAJSOUL.describe!.events.some(event => event.type === 'majsoul.state'));
+  const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+  await readFile(new URL('../' + pkg.cortico.webUiClient, import.meta.url));
+  assert.equal(pkg.cortico.api, 6);
+});
+
+test('render limiter preserves a frame batch, cancellation, next-frame callbacks and reattachment', () => {
+  let next = 0;
+  const frames = new Map<number, FrameRequestCallback>();
+  const scope: any = { WebSocket: class {},
+    requestAnimationFrame: (callback: FrameRequestCallback) => { frames.set(++next, callback); return next; },
+    cancelAnimationFrame: (id: number) => frames.delete(id),
+  };
+  runInNewContext('(' + installHook.toString() + ')("fixture", 30)', { window: scope, __name: (value: unknown) => value, setTimeout });
+  const tick = (at: number) => { const queued = [...frames.values()]; frames.clear(); for (const callback of queued) callback(at); };
+  const seen: string[] = [];
+  scope.requestAnimationFrame(() => { seen.push('first'); scope.requestAnimationFrame(() => seen.push('next')); });
+  const cancelled = scope.requestAnimationFrame(() => seen.push('cancelled'));
+  scope.cancelAnimationFrame(cancelled);
+  scope.requestAnimationFrame(() => seen.push('batch'));
+  tick(0); assert.deepEqual(seen, ['first', 'batch']);
+  tick(16); assert.deepEqual(seen, ['first', 'batch']);
+  tick(34); assert.deepEqual(seen, ['first', 'batch', 'next']);
+  const last = scope.requestAnimationFrame(() => seen.push('cancelled'));
+  scope.cancelAnimationFrame(last); assert.equal(frames.size, 0);
+  runInNewContext('(' + installHook.toString() + ')("reattached", 60)', { window: scope });
+  scope.requestAnimationFrame(() => seen.push('updated'));
+  tick(51); assert.equal(seen.at(-1), 'updated');
+  assert.equal(scope.__corticoMajsoul.bindingName, 'reattached');
 });

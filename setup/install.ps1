@@ -34,7 +34,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $extensionDir 'assets\liqi.json'))) 
     & node.exe (Join-Path $PSScriptRoot 'fetch-protocol.mjs')
     if ($LASTEXITCODE -ne 0) { throw '雀魂协议准备失败，未启用自动操作。请检查网络及上方错误信息。' }
 }
-$manifest = Invoke-RestMethod -Uri "$ConsoleUrl/api/console/manifest" -TimeoutSec 10
+$manifest = Invoke-RestMethod -Uri "$ConsoleUrl/api/webui/manifest" -TimeoutSec 10
 $world = $manifest.providers | Where-Object id -eq 'world:majsoul'
 $extensions = Invoke-RestMethod -Uri "$ConsoleUrl/api/extensions" -TimeoutSec 10
 $existing = $extensions.extensions | Where-Object name -eq 'cortico-world-majsoul'
@@ -68,7 +68,7 @@ if (-not $world -or -not $registered -or $existing.state -eq 'pending-restart') 
         if ($lifecycle -and $lifecycle.ready -and $lifecycle.bootId -ne $bootId) { break }
     } while ((Get-Date) -lt $deadline)
     if (-not $lifecycle -or -not $lifecycle.ready -or $lifecycle.bootId -eq $bootId) { throw 'Cortico 尚未完成重启，请查看控制台。' }
-    $manifest = Invoke-RestMethod -Uri "$ConsoleUrl/api/console/manifest" -TimeoutSec 10
+    $manifest = Invoke-RestMethod -Uri "$ConsoleUrl/api/webui/manifest" -TimeoutSec 10
     if (-not ($manifest.providers | Where-Object id -eq 'world:majsoul')) { throw '重启完成，但雀魂扩展未加载。' }
 }
 Write-Host '雀魂扩展已加载。'

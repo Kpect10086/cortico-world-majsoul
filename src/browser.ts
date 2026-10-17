@@ -24,7 +24,7 @@ export class GameBrowser {
   private readonly onPageClose = () => this.disconnected('专用游戏页面已关闭。');
   private readonly onNavigation = (frame: Frame) => { if (frame === this.page?.mainFrame()) this.disconnected('游戏页面已刷新，等待状态恢复。'); };
   private readonly onBrowserDisconnected = () => this.disconnected('专用浏览器连接已断开。');
-  constructor(private readonly allowActions: () => boolean, private readonly metricsFile?: string, private readonly newRoundDelayMs: () => number = () => 4000) {}
+  constructor(private readonly allowActions: () => boolean, private readonly metricsFile?: string, private readonly newRoundDelayMs: () => number = () => 4000, private readonly maxRenderFps: () => number = () => 30) {}
   get connected(): boolean { return !!this.browser?.isConnected() && this.socket !== null; }
   get busy(): boolean { return !!this.pending; }
   snapshot(): Observation { return this.state.snapshot(); }
@@ -49,7 +49,7 @@ export class GameBrowser {
         this.receive(packet);
       });
       // tsx 为命名函数注入 __name；序列化到网页时一并提供这个无副作用助手。
-      const script = `(() => { const __name = value => value; (${installHook.toString()})(${JSON.stringify(binding)}); })();`;
+      const script = `(() => { const __name = value => value; (${installHook.toString()})(${JSON.stringify(binding)},${JSON.stringify(this.maxRenderFps())}); })();`;
       await context.addInitScript({ content: script });
       this.page = context.pages().find(p => p.url().startsWith(new URL(url).origin)) ?? context.pages().find(p => p.url() === 'about:blank') ?? await context.newPage();
       this.page.on('close', this.onPageClose);

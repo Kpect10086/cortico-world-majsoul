@@ -1,10 +1,36 @@
 /** 仅在专用游戏页面安装；协议数据通过本机 CDP 交给 World，不改写游戏消息。 */
-export function installHook(bindingName: string): void {
+export function installHook(bindingName: string, maxRenderFps = 30): void {
   const scope = window as any;
-  if (scope.__corticoMajsoul) { scope.__corticoMajsoul.bindingName = bindingName; scope.__corticoMajsoul.enabled = true; return; }
+  if (scope.__corticoMajsoul) { scope.__corticoMajsoul.bindingName = bindingName; scope.__corticoMajsoul.enabled = true; scope.__corticoMajsoul.maxRenderFps = maxRenderFps; return; }
   const Native = scope.WebSocket as typeof WebSocket;
   const sockets = new Map<number, { socket: WebSocket; serial: number; nativeIds: Set<number>; ownIds: Set<number> }>();
-  const hook: any = { bindingName, enabled: true };
+  const hook: any = { bindingName, enabled: true, maxRenderFps };
+  // Keep cancellation and all callbacks in a frame; only rendering waits for the next interval.
+  const nativeFrame = scope.requestAnimationFrame.bind(scope), nativeCancel = scope.cancelAnimationFrame.bind(scope);
+  const callbacks = new Map<number, FrameRequestCallback>();
+  let frameId: number | null = null, nextFrameId = 0, lastFrameAt = -Infinity;
+  const scheduleFrame = () => {
+    if (frameId !== null || !callbacks.size) return;
+    frameId = nativeFrame((timestamp: number) => {
+      frameId = null;
+      if (timestamp - lastFrameAt + 0.1 >= 1000 / hook.maxRenderFps) {
+        lastFrameAt = timestamp;
+        for (const id of [...callbacks.keys()]) {
+          const callback = callbacks.get(id);
+          callbacks.delete(id);
+          if (callback) try { callback(timestamp); } catch (error) { setTimeout(() => { throw error; }, 0); }
+        }
+      }
+      scheduleFrame();
+    });
+  };
+  scope.requestAnimationFrame = (callback: FrameRequestCallback) => {
+    const id = ++nextFrameId; callbacks.set(id, callback); scheduleFrame(); return id;
+  };
+  scope.cancelAnimationFrame = (id: number) => {
+    callbacks.delete(id);
+    if (!callbacks.size && frameId !== null) { nativeCancel(frameId); frameId = null; }
+  };
   let nextSocket = 0, queue = Promise.resolve();
   const sendToHost = (packet: any) => {
     if (!hook.enabled) return;
