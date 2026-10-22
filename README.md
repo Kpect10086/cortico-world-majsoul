@@ -1,176 +1,54 @@
-# `src/world.ts`：Cortico 雀魂麻将扩展
+# 雀魂麻将 — src/world.ts
 
-让你的Cortico角色读取雀魂牌局，并在你允许后自主出牌。扩展提供自己的手牌、公开牌河、副露、当前合法操作和牌效分析；角色负责决定打法，扩展负责执行动作并核对服务器回执。
+## 安装与依赖
 
-支持四人麻将和三人麻将。登录账号、创建房间、匹配和局间结算确认由你操作。首次使用建议开友人房加AI测试。
+需要 Windows、Microsoft Edge、Node.js 22.16+、Cortico 0.2.4 / World API 6，以及可用的模型连接和用户自己的雀魂账号。扩展页安装 **cortico-world-majsoul@1.1.1** 后重启。依赖 @kobalab/majiang-core、playwright-core、protobufjs 自动安装；不额外下载整套 Chromium。源码目录首次使用需 npm install，启动器会补装运行依赖。
 
-| 项目 | 信息 |
-| --- | --- |
-| 作者与维护者 | [Kpect10086](https://github.com/Kpect10086) |
-| 版本 | 1.1.0 |
-| 首版打包日期 | 2026-10-07 |
-| 许可 | MIT |
-| 源码与反馈 | [GitHub 仓库](https://github.com/Kpect10086/cortico-world-majsoul) · [Issues](https://github.com/Kpect10086/cortico-world-majsoul/issues) |
+已附官方公开协议 assets/liqi.json，默认无需额外下载；缺失时启动器调用 setup/fetch-protocol.mjs 从官方获取并核对固定 SHA256。游戏升级导致协议不符时需更新扩展，不绕过版本或校验。已编译的面板随包提供。
 
-**Windows 下载：[最新 Release](https://github.com/Kpect10086/cortico-world-majsoul/releases/latest)**，选择附件 `cortico-world-majsoul-1.1.0.zip`。解压后先启动自己的 Cortico，再双击包内 `start-majsoul.cmd`。首次入口会安装依赖、从雀魂官方准备协议、登记扩展并请求 Cortico 重新加载。
+双击 start-majsoul.cmd 输入框架根目录、当前 bot 部署目录；控制台非默认地址时用命令行 -ConsoleUrl 传入。启动器只接管部署专属 Edge，首次安装可能请求 Cortico 自身重启。手动登录并在友人房添加 CPU，局间确认仍需手动。默认自动操作关闭，启动器或面板可启用；-ObserveOnly 仅观察。模型和网络影响反应时间，5 秒是目标。
 
-ZIP 是需要联网完成首次设置的安装包；它不包含 Node.js、Edge、Cortico 或角色配置。Release 中自动生成的 `Source code` 是源码快照，推荐下载上面指定的 ZIP 附件。也可直接在 Cortico 控制台搜索安装 npm 包 `cortico-world-majsoul`；包内同样包含启动入口。
+升级保留部署 data/majsoul，包不含账号、浏览器资料或真实日志。协议与游戏资源归原游戏权利人，LICENSE 仅覆盖自行编写的代码。
 
-## 使用前准备
+## 功能与运行
 
-- Windows和Microsoft Edge浏览器。
-- Cortico 0.2.2 或以上（World 契约 v6）。
-- Node.js 22.15或以上，安装时包含npm。
-- 已经能正常启动、使用模型并对话的Cortico角色，框架需要支持World API 5。本扩展开发类型契约使用Cortico 0.1.6。
-- 你自己的雀魂账号。登录在扩展打开的专用Edge浏览器中完成。
+# `src/world.ts`：雀魂麻将 World
 
-本扩展提供游戏观察与操作工具。语音、Live2D和直播输出使用你原有的Cortico配置。
+使用当前 Unity 网页客户端的 Liqi 消息读取公开牌局，由模型通过 `majsoul_act` 选择动作。浏览器桥接监听 `/game-gateway` 与 `/gateway`，通过 `FastTest.authGame` 识别牌局连接；等待认证时重复连接不会再次刷新。无需油猴、修改游戏文件或安装额外浏览器扩展。
 
-## 从 Cortico 控制台安装（推荐）
+在扩展目录双击 start-majsoul.cmd，输入你自己的框架根目录与当前部署目录。也可传入 -FrameworkDir、-DeploymentDir 和 -ConsoleUrl。首次安装后需重启 Cortico；专用 Edge 中手动登录，进入友人房添加 CPU 并开始牌局。
 
-在 Cortico 控制台的“扩展 → World”中搜索 **`cortico-world-majsoul`**，安装或更新到 **1.1.0**，然后按原有方式重启 Cortico。
+控制台“游戏状态”面板通过 manifest 的 cortico.webUiClient 加载 src/webui/client.js，已随包提供，无需另行构建。
 
-打开已安装的扩展目录，双击 **`start-majsoul.cmd`**，根据提示输入框架和当前部署目录。默认目录为 `<Cortico框架目录>\extensions\node_modules\cortico-world-majsoul`；设置了 `CORTICO_EXTENSIONS_DIR` 时，在该扩展目录下的 `node_modules\cortico-world-majsoul` 中找到入口。接着按下面第5步登录并开局。
+`-ObserveOnly` 可关闭自动动作：`powershell -File setup\start-game.ps1 -ObserveOnly`。控制台的“允许操作当前牌局”可热切换。再次打开入口会复用已附着的游戏页面；结算后连接关闭时等待下一局或开局，操作结果未知时不重发动作。停用 World 保留 Edge 与游戏页面。
 
-npm 安装会补齐运行依赖；入口会准备并校验缺少的雀魂协议、启用 World、打开专用 Edge。无需手动执行 `prepare:protocol`。运行入口表示允许角色操作当前牌局；只旁观时在 PowerShell 中运行 `start-majsoul.cmd` 并传入 `-ObserveOnly`，完整命令见下方第4步。该入口启动雀魂连接，Cortico 仍需先由你的原有启动方式运行。
+专用页面默认将 `requestAnimationFrame` 限制为 30 FPS，减少渲染负担；服务器消息、操作与回执保持原调度。控制台“网页渲染帧率上限”可设为 15–60，下一次连接页面时生效。安装新桥接前已打开的旧页面需由操作者刷新。实际游戏 GPU 占用需在打开雀魂后测量。
 
-### 仍使用 npm 1.0.0
+工具：`majsoul_status` / `majsoul_observe` 读取状态；`majsoul_reconnect` 在允许操作且断线时重新附着桥接，保留游戏页面，不触发刷新；已经连通或本局已结算时只读取状态。`majsoul_act` 提交出牌、立直、吃、碰、暗杠、明杠、加杠、自摸、荣和、九种九牌、三麻拔北或跳过。只能使用当前服务器给出的操作，索引来自当前 combinations。观察包含本人手牌、公开牌河、副露、宝牌指示牌和点数；对手摸牌与暗手、牌山、登录凭据不进入模型观察或动作日志。
 
-在Cortico控制台的“扩展 → World”中搜索 `cortico-world-majsoul` 并安装。安装完成后，先准备游戏协议，再重启Cortico。npm包不包含游戏协议资源；跳过这一步会导致扩展加载失败。
+状态与事件的 `handAnalysis` 提供中文整理手牌、摸牌和当前合法弃牌的向听数、有效进张、合法立直标记及对立直家的现物。使用 [majiang-core](https://github.com/kobalab/majiang-core) 本地计算一般形、七对子和国士无双，不需要额外模型调用。进张数扣除公开可见牌，是未见张数上限；牌效排序不含完整役、点数期望或副露价值评估，攻守与动作仍由模型决定。
 
-在PowerShell中执行，将路径换成自己的Cortico框架目录：
+三麻人数以 authGame 的座位数为准，四格分数消息不创建第四位玩家，重连动作重放保留实际人数。`handAnalysis` 还提供门清、自风、场风、役牌牌种和舍牌振听（包括候选弃牌造成的振听）；不推测同巡或立直见逃状态，胡牌合法性仍以服务器操作为准。环境提示词补充有役、门清、副露、振听和三麻规则，牌效不是完整打牌策略。
 
-```powershell
-Set-Location "<Cortico框架目录>\extensions\node_modules\cortico-world-majsoul"
-npm.cmd run prepare:protocol
-```
+轮到本人时用框架的 preempt 事件立即投递，并请求取消尚未外化的旧思考；Core 已经产生外部输出时仍可能等待旧调用结束。对手普通弃牌只随下一次唤醒提供。默认决策目标为五秒，有操作窗口时直接使用事件状态提交动作。普通操作默认安静，关键变化确认后才考虑短句解说；主动解说通常至少间隔 30 秒，已有台词未播完时省略新的普通解说。有效直接问题在操作窗口解除且没有语音积压时优先简短回应，局后或明确要求时再展开。声音仍使用已有发声 World；该扩展不代替语音服务，模型和网络延迟仍可能超过决策目标。
 
-如果设置过 `CORTICO_EXTENSIONS_DIR`，将上述 `extensions` 路径换成该配置的扩展目录。协议准备成功后，按原来的方式重启Cortico；继续下面第3步确认框架和部署目录，再从这个npm包目录运行 `start-majsoul.cmd`。
+验证入口：`pnpm test`、`pnpm typecheck`；框架目录使用 `pnpm check:extension <扩展目录>`。测试用真实 Edge 的无界面窗口和本机模拟游戏服务器，不登录真实雀魂。测试覆盖协议编码、公开信息过滤、红五、副露、合法操作、旧版本、浏览器序号检查、服务器拒绝、确认消息顺序、超时与重连。真实雀魂接受动作、吃碰杠各变体和实际五秒反应速度仍需用户实机验证。
 
-## 从 Release 安装与开局
+动作日志为 `<部署目录>\data\majsoul\actions.jsonl`：`decisionMs` 是接收操作窗口至提交的时间，`acknowledgementMs` 是提交至匹配结果的时间。没有原始流量或凭据。`decisionTargetMs` 只是目标提示，不是自动选牌策略。庄家开局的首个操作从接收 `ActionNewRound` 起等待 `newRoundDelayMs`（默认四秒），兼容发牌阶段；等待后重新核对版本、连接与权限，提交后才开始回执超时计时。后续操作不加等待。timer.fixedMs 来自服务器固定计时毫秒；extraRaw 保留未实机核对单位的加时字段。
 
-### 1. 下载并解压
+允许操作且已连接到完整的进行中牌局时，主 session 请求临时关闭思考；局后、断线、暂停操作、隐藏或停用 World 后恢复保存的模型档位。此能力需要框架支持 `World.suppressThinking()`；不改写供应商配置，后台认知请求保持原档位。状态中的 `fastMode` 表示雀魂当前是否请求快速模式。
 
-打开[最新 Release](https://github.com/Kpect10086/cortico-world-majsoul/releases/latest)，下载 `cortico-world-majsoul-1.1.0.zip`，解压到准备长期保留的位置。打开解压后的文件夹，确认里面有 `package.json`、`src`、`setup` 和 **`start-majsoul.cmd`**。本地扩展安装接口目前接受英文、数字和空格路径，请选不含中文的目录。
+恢复消息必须包含以 ActionNewRound 开头的完整动作序列；只有 snapshot 时暂停至下一局。未知动作、消息缺口和特殊规则暂停自动操作并报告 reason。每次成功非跳过动作需收到同 ID 的服务器 RESPONSE 与匹配权威动作；跳过的 server_accepted 仅代表服务器接受。禁打限制按牌种比较，红五和普通五一并禁止；handAnalysis.blockedDiscards 提供原因。提交前拒绝保留当前窗口，服务器明确拒绝且期间状态未变时恢复该窗口；失败回执提供最新合法候选。超时、取消、断线均返回 unknown，不恢复旧操作，也不清空期间新到的权威窗口。
 
-下面的“扩展目录”指包含这个 `package.json` 的文件夹，不是ZIP文件，也不是它的上一级目录。安装后请保留这个文件夹；本地安装会引用其中的文件。
+接口与资源来源：
 
-### 2. 首次设置由入口完成
+- 当前游戏页面：[雀魂网页](https://game.maj-soul.com/1/)，核对为 Unity WebGL `4.0.47(47)`。
+- 协议字段：[游戏公开 liqi.json](https://game.maj-soul.com/1/v0.11.243.w/res/proto/liqi.json)，SHA256 `f2955c3d10cf2d42bee9309f672c062540941ea0cffe1bd62e3f436c7afc404c`。
+- 消息编码与操作通道参考：[Naki 的协议说明](https://github.com/Sunalamye/Naki/blob/main/docs/majsoul-unity-protocol.md)。本包不包含其 Swift、JS、AI 模型或高亮实现。
+- 浏览器连接：[Playwright CDP API](https://playwright.dev/docs/api/class-browsertype#browser-type-connect-over-cdp)。
+- 日麻通用概念：[WRC 2025 规则](https://www.worldriichi.org/wrc-rules) 的门清、有役与振听章节；其竞技赛事的起始点数、连庄、赤牌和特殊和牌规则不移植为雀魂规则。雀魂模式与友人房说明：[官方入门指南](https://mahjongsoul.com/startguide/)。具体房间与三麻动作以雀魂服务器为准。
 
-无需手动执行 npm 命令。下面第4步的入口会检查 Node.js 版本，补齐缺少的运行依赖，下载协议并核对 SHA256。首次设置需要能访问 npm 注册表和雀魂官方资源；失败会停止并显示错误。
+`assets/liqi.json` 的协议定义属于原游戏；本包 LICENSE 仅适用于本包自行编写的代码。专属登录资料存入部署 data/majsoul/edge-profile；打包不包含该目录。
 
-开发者使用 **Code → Download ZIP** 或 Git 克隆时也能使用同一入口。需要自行准备开发环境和运行测试时，在包含 `package.json` 的扩展目录执行：
+`src/render.ts` 渲染模型状态正文：完整保留操作索引、牌河标记、全部合法候选与进张，手牌只列一次。自动事件使用语义文本；读取、重连及失败回执的 `state` 为相同正文，`version`、`outcome`、`retry` 保持可直接使用。面板 `state` 仍返回原始对象。`majsoul.state.meta.connected/active` 供其他 World 读取场景。
 
-```powershell
-npm.cmd install --ignore-scripts
-npm.cmd run prepare:protocol
-```
-
-正常安装只需继续第3、4步。协议尚未准备时，1.1.0 仍可被 Cortico 加载；连接牌局会提示运行入口准备协议。
-
-### 3. 启动自己的Cortico
-
-按你原来的方式启动Cortico，确认控制台可以打开。记下两个目录：
-
-| 入口参数 | 应填写的目录 |
-| --- | --- |
-| `FrameworkDir` | Cortico框架根目录，其中有框架的 `package.json`、`src` 和 `extensions` 目录。 |
-| `DeploymentDir` | 你当前运行的Bot部署目录，其中有该部署的配置和 `data` 目录。不要填整个 `deployments` 父目录。 |
-
-入口会核对控制台是否属于指定部署。默认控制台地址是 `http://127.0.0.1:7788`；如果你使用别的端口，下一步同时传入 `-ConsoleUrl "http://127.0.0.1:<你的端口>"`。
-
-### 4. 运行游戏入口
-
-**直接双击 `start-majsoul.cmd`**，根据提示粘贴框架目录和当前部署目录，按回车。入口会自动完成第2步；不要在 ZIP 内直接运行。也可在扩展目录的 PowerShell 中执行以下命令，把两个路径占位符换成实际目录：
-
-```powershell
-.\start-majsoul.cmd -FrameworkDir "<Cortico框架目录>" -DeploymentDir "<当前Bot部署目录>"
-```
-
-这个入口会登记当前包所在目录、启用雀魂 World、打开“允许操作当前牌局”、让角色能看到该World、连接专用Edge浏览器，并恢复角色运行。**运行这个入口表示允许角色操作牌局。** 扩展本身的默认操作权限是关闭的。只旁观时使用下方 `-ObserveOnly` 命令。
-
-首次安装需要Cortico进程重新加载扩展。如果你原来的启动方式带有受监督启动器，入口会请求重启一次；如果提示需手动重启，就按原来的方式重启Cortico，再执行入口。刷新控制台网页不能加载新扩展代码。
-
-如果想让角色旁观、自己打牌，在同一命令后加 `-ObserveOnly`：
-
-```powershell
-.\start-majsoul.cmd -FrameworkDir "<Cortico框架目录>" -DeploymentDir "<当前Bot部署目录>" -ObserveOnly
-```
-
-### 5. 登录雀魂并手动开局
-
-在入口打开的**专用 Edge 窗口**中登录雀魂。这个窗口使用独立浏览器资料，可能需要重新登录；普通Edge或其他浏览器里已经打开的雀魂页面不会自动接入。
-
-默认打开中国服务器 `https://game.maj-soul.com/1/`。其他服务器用户可先在 Cortico的“雀魂麻将”World配置中选择“雀魂网页地址”，然后运行入口。
-
-你手动创建友人房或匹配，进入牌局后，角色通过牌局事件接收状态并决定操作。首次建议友人房加AI，并选择宽松计时；模型或网络延迟可能使出牌赶不上倒计时。
-
-### 6. 确认连接与权限
-
-在Cortico控制台打开“雀魂麻将”World，检查：
-
-- “牌局桥接”显示在线。
-- “游戏操作”显示允许；旁观模式应显示暂停。
-- 进入牌局后，“游戏状态”的 `state` 查询包含自己的手牌和公开牌局信息。
-
-也可以让角色调用 `majsoul_status` 核对：`connected` 为 `true`，自动操作时 `allowActions` 为 `true`，收到完整牌局时 `observation.complete` 为 `true`。大厅没有手牌是正常状态。
-
-## 日常使用与暂停
-
-- **再次启动：** 启动自己的Cortico后，双击 `start-majsoul.cmd` 输入目录，或执行同一条带目录参数的命令。已有连接会被复用。
-- **局间确认：** 回合结算或整场结束需要点击确认时，由你操作。登录、建房和匹配同样由你完成。
-- **暂停代打：** 在“雀魂麻将”World 配置中关闭“允许操作当前牌局”，即时生效。也可使用 `-ObserveOnly` 入口切换为旁观。
-- **断线：** 先查看连接状态；角色的 `majsoul_reconnect` 会重新附着桥接并等待客户端认证，不刷新游戏页面。不要连续刷新或反复重发结果未知的动作。
-- **停用：** 在控制台停用雀魂 World，已有游戏浏览器会保留。
-- **更新 Release：** 解压新版到英文路径，启动自己的 Cortico，再运行新版 `start-majsoul.cmd`。入口会登记新版目录并请求重启加载；部署配置与浏览器资料保留在原部署目录。没有受监督启动器时，按提示手动重启 Cortico，再执行入口。
-
-## 常见问题
-
-| 现象 | 检查方式                                                       |
-| --- |------------------------------------------------------------|
-| `npm.cmd` 或Node命令找不到 | 确认已安装Node.js与npm，重新打开PowerShell后再执行。                       |
-| Node版本过低 | 执行 `node -v` 核对实际版本；安装22.15或以上后，检查PATH或Nodist是否仍选择旧版Node。 |
-| 下载后没有 `start-majsoul.cmd` | 重新下载 Release 的版本 ZIP 附件并完整解压，不要使用旧缓存或只下载单个源码文件。 |
-| 提示先准备协议、协议下载失败或SHA256不匹配 | 回到扩展目录重新运行 `npm.cmd run prepare:protocol`，检查网络和错误信息；校验失败时不要跳过检查。 |
-| 控制台连接失败 | 先启动Cortico，确认控制台可访问；非默认端口传入正确的 `-ConsoleUrl`。              |
-| 提示“当前控制台不是指定部署” | 检查 `DeploymentDir` 是否为这个控制台实际运行的部署，不要通过修改身份校验绕过错误。         |
-| 扩展已安装但没有“雀魂麻将”World | 重启 Cortico 进程加载扩展；如果仍没有，查看控制台的扩展加载错误。                      |
-| 能打开游戏，但角色看不到牌局 | 确认使用入口打开的专用Edge浏览器，在该窗口登录并开局；检查“牌局桥接”和状态查询。                |
-| 角色能读牌但不操作 | 检查 World 已启用、对角色可见、操作权限已允许、Cortico正在运行；以实时工具回执判断原因。        |
-| 回执为 `unknown` | 动作可能已经执行，先读取最新状态，不要自动重发同一个动作。                              |
-| 提示浏览器端口属于其他浏览器 | 在雀魂 World配置中选择未占用的“专用 Edge 调试端口”，重建World使端口配置生效后重新运行入口。    |
-| 包目录移动后无法加载 | 在控制台重新登记新的本地扩展目录，再重启Cortico；保留原有部署数据。                      |
-| 信息页发布日期、体积或维护者为空 | 这些字段来自npm注册表；检查网络并刷新扩展列表，作者和版本也可查看上方信息表。 |
-
-## 接口与限制
-
-- `majsoul_status` / `majsoul_observe`：读取当前权限、连接、公开状态和牌效。
-- `majsoul_act`：出牌、立直、吃碰杠、胡牌、九种九牌、三麻拔北或跳过；仅接受当前服务器合法动作。
-- `majsoul_reconnect`：断线后重新附着桥接，不刷新页面、不重发未知结果的动作。
-
-观察不包含对手暗手、牌山、登录令牌或原始网络流量。`handAnalysis` 由 [majiang-core](https://github.com/kobalab/majiang-core) 本地计算向听、公开未见进张、特殊路线和舍牌振听；不计算完整牌值、同巡振听或胜率。攻守仍由模型决定。
-
-每份观察有 version，同一连接只等待一个动作；权威动作和服务器响应匹配后确认结果。超时、断线或取消返回结果未知，不自动重试。缺失动作、未知动作和不能完整恢复的特殊规则停止自动操作。决策目标不是限时保证，模型和网络延迟可能超出倒计时。声音由部署已有发声World 提供。
-
-专用浏览器登录资料仅保存在使用者自己的 `<部署目录>/data/majsoul/edge-profile`，动作耗时保存在同级 `actions.jsonl`，不应提交这些运行文件。调试端口仅供本机使用。
-
-## 验证
-
-```powershell
-npm test
-npm run typecheck
-```
-
-在Cortico源码目录运行 `pnpm check:extension <本包目录>`。测试使用临时目录、无界面Edge和本机模拟游戏服务器，不登录真实游戏；覆盖协议、权限、三人麻将、庄家首操作、回执、拒绝、取消、超时与重连。该验证不证明所有线上规则、实际模型反应速度或长时间运行均已通过。
-
-## 来源与许可
-
-自行编写的代码采用MIT，见LICENSE。依赖各自的许可证保留在其包内。雀魂协议定义属于游戏发布方，由使用者从官方地址准备，不受本包MIT许可覆盖。
-
-- [雀魂网页](https://game.maj-soul.com/1/)
-- [协议定义来源](https://game.maj-soul.com/1/v0.11.243.w/res/proto/liqi.json)：SHA256 `f2955c3d10cf2d42bee9309f672c062540941ea0cffe1bd62e3f436c7afc404c`
-- [Naki 协议说明](https://github.com/Sunalamye/Naki/blob/main/docs/majsoul-unity-protocol.md)：消息封装参考，不包含其实现或模型。
-- [Playwright CDP API](https://playwright.dev/docs/api/class-browsertype#browser-type-connect-over-cdp)
-- [Cortico 扩展契约](https://github.com/Pal-AI-Lab/Cortico/blob/main/docs/extensions.md)
-
-这是第三方扩展，与游戏官方没有隶属关系；使用前自行确认游戏服务对自动操作的要求。

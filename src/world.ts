@@ -5,6 +5,7 @@ import type { World, WorldHost, WorldWebUiDecl, ToolDef, ToolSpec } from 'cortic
 import { GameBrowser, ActionUncertainError } from './browser.ts';
 import { MAJSOUL_CONFIG_GROUP, type MajsoulConfigSection } from './config.ts';
 import { analyzeHand } from './hand.ts';
+import { renderMajsoulState } from './render.ts';
 const read: ToolSpec = { name: 'majsoul_status', description: '读取实时游戏权限、连接、手牌、公开牌河、副露和服务器可用操作。timer.fixedMs 是服务器固定计时毫秒；extraRaw 为加时原始值。', tags: ['read', 'snapshot'], parameters: { type: 'object', properties: {}, additionalProperties: false } };
 export const MAJSOUL_TOOL_DECLS: Omit<ToolDef, 'handler'>[] = [
   read, { ...read, name: 'majsoul_observe', description: '读取最新公开牌局与 version；不重新开局、不刷新网页。看不到对手暗手和牌山。' }, {
@@ -58,9 +59,22 @@ export class MajsoulWorld implements World {
       if (fingerprint === this.fingerprint) return;
       this.fingerprint = fingerprint;
       const revision = ++this.eventRevision;
-      host.pushDeferred({ type: 'majsoul.state', senderKey: this.id, tags: ['snapshot'], render: () => this.host && revision === this.eventRevision ? JSON.stringify(this.status()) : null },
+      const meta = { connected: this.game.connected, active: view.active };
+      host.pushDeferred({ type: 'majsoul.state', senderKey: this.id, tags: ['snapshot'], meta, render: () => {
+        if (!this.host || revision !== this.eventRevision) return null;
+        meta.connected = this.game.connected; meta.active = this.game.state.view.active;
+        return this.renderState();
+      } },
         { trigger: this.ctx.cfg.allowActions && view.ready && !this.game.busy ? 'preempt' : view.lastAction?.name === 'ActionHule' || view.lastAction?.name === 'ActionNoTile' || view.lastAction?.name === 'ActionLiuJu' ? 'debounce' : 'piggyback' });
     };
+  }
+
+  private renderState(): string {
+    return renderMajsoulState(this.status());
+  }
+  private modelStatus(extra: Record<string, unknown> = {}): string {
+    const status = this.status();
+    return compactJson({ connected: status.connected, version: status.observation.version, ...extra, state: renderMajsoulState(status) });
   }
   async stop(): Promise<void> { this.game.onState = undefined; this.host = undefined; await this.game.stop(); this.fingerprint = ''; }
   async panel(panel: string, method: string): Promise<unknown> {
@@ -73,31 +87,39 @@ export class MajsoulWorld implements World {
     return this.status();
   }
   tools(): ToolDef[] {
-    const read: ToolDef = { ...MAJSOUL_TOOL_DECLS[0], handler: async () => JSON.stringify(this.status()) };
+    const read: ToolDef = { ...MAJSOUL_TOOL_DECLS[0], handler: async () => this.modelStatus() };
     return [read, { ...read, ...MAJSOUL_TOOL_DECLS[1] }, {
       ...MAJSOUL_TOOL_DECLS[2],
       handler: async (_args, call) => {
         try {
           call.signal?.throwIfAborted();
-          if (this.game.connected) return JSON.stringify(this.status());
+          if (this.game.connected) return this.modelStatus();
           if (!this.ctx.cfg.allowActions) throw new Error('游戏操作已暂停，不能自动重连。');
-          if (!this.game.state.view.active && this.game.state.view.seat !== null) return JSON.stringify(this.status());
+          if (!this.game.state.view.active && this.game.state.view.seat !== null) return this.modelStatus();
           await this.panel('game', 'attach');
-          return JSON.stringify({ ...this.status(), reconnect: 'bridge_attached', message: '桥接已附着，游戏页面保持原样，等待客户端认证；结算后等待下一局或由操作者开局。' });
+          return this.modelStatus({ reconnect: 'bridge_attached', message: '桥接已附着，游戏页面保持原样，等待客户端认证；结算后等待下一局或由操作者开局。' });
         } catch (error) {
-          return { failed: true, text: JSON.stringify({ ...this.status(), error: error instanceof Error ? error.message : String(error) }) };
+          return { failed: true, text: this.modelStatus({ error: error instanceof Error ? error.message : String(error) }) };
         }
       },
     }, {
       ...MAJSOUL_TOOL_DECLS[3],
       handler: async (args, call) => {
-        try { return JSON.stringify(await this.game.execute(args, this.ctx.cfg.commandTimeoutSec * 1000, call.signal)); }
-        catch (error) {
+        try {
+          // 成功回执只带动作结果与版本;完整状态由随后的 majsoul.state 事件送达,不重复塞进上下文。
+          const { observation, ...rest } = await this.game.execute(args, this.ctx.cfg.commandTimeoutSec * 1000, call.signal) as Record<string, unknown> & { observation?: { version?: string } };
+          return compactJson({ ...rest, version: observation?.version });
+        } catch (error) {
           const unknown = error instanceof ActionUncertainError;
-          return { failed: true, text: JSON.stringify({ ...this.status(), outcome: unknown ? 'unknown' : 'rejected', retry: !unknown && this.ctx.cfg.allowActions && this.game.connected && !this.game.busy && this.game.state.view.ready,
+          return { failed: true, text: this.modelStatus({ outcome: unknown ? 'unknown' : 'rejected', retry: !unknown && this.ctx.cfg.allowActions && this.game.connected && !this.game.busy && this.game.state.view.ready,
             error: error instanceof Error ? error.message : String(error), rejectedAction: args.action, rejectedTile: args.tile }) };
         }
       },
     }];
   }
+}
+
+/** 小回执省略 false、null 与空字段；完整状态的真假值在 state 正文中显式列出。 */
+function compactJson(value: unknown): string {
+  return JSON.stringify(value, (_key, v) => (v === false || v === null || v === '' || (Array.isArray(v) && v.length === 0) ? undefined : v)) ?? 'null';
 }

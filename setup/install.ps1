@@ -41,7 +41,7 @@ $existing = $extensions.extensions | Where-Object name -eq 'cortico-world-majsou
 $packageVersion = (Get-Content -LiteralPath (Join-Path $extensionDir 'package.json') -Raw -Encoding UTF8 | ConvertFrom-Json).version
 $installedDir = Join-Path $extensions.dir 'node_modules\cortico-world-majsoul'
 if ($existing.spec -like 'link:*') { $installedDir = $existing.spec.Substring(5) }
-$registered = $existing -and $existing.state -ne 'removed' -and $existing.installedVersion -eq $packageVersion -and [IO.Path]::GetFullPath($installedDir) -eq $extensionDir
+$registered = $existing -and $existing.state -ne 'removed' -and $existing.installedVersion -eq $packageVersion -and [IO.Path]::GetFullPath($installedDir).TrimEnd('\', '/') -eq $extensionDir.TrimEnd('\', '/')
 if (-not $world -or -not $registered -or $existing.state -eq 'pending-restart') {
     if (-not $registered) {
         $backupDir = Join-Path $dataDir ('majsoul\backups\' + (Get-Date -Format 'yyyyMMdd-HHmmss'))

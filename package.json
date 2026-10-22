@@ -1,6 +1,6 @@
 {
   "name": "cortico-world-majsoul",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "type": "module",
   "description": "雀魂网页公开牌局、版本校验和动作回执",
   "author": "Kpect10086",
@@ -18,7 +18,7 @@
     "cortico-world"
   ],
   "engines": {
-    "node": ">=22.15.0"
+    "node": ">=22.16.0"
   },
   "cortico": {
     "kind": "world",
@@ -36,17 +36,17 @@
     ]
   },
   "files": [
-    "src/*.ts",
-    "src/ENV_PROMPT.md",
-    "setup/install.ps1",
-    "setup/start-game.ps1",
+    "src",
+    "setup/*.ps1",
     "setup/fetch-protocol.mjs",
+    "assets/liqi.json",
     "start-majsoul.cmd",
     "README.md",
     "LICENSE",
-    "src/webui/client.js",
     "describe.json",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "tests",
+    "tsconfig.json"
   ],
   "scripts": {
     "test": "tsx --test tests/game.test.ts",
@@ -64,9 +64,13 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "ws": "^8.18.0",
-    "cortico": "0.2.2"
+    "cortico": "0.2.4"
   },
   "os": [
     "win32"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }
