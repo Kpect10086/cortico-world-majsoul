@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createServer } from 'node:http';
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, realpath } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import {tmpdir} from 'node:os';
 import {mkdirSync} from 'node:fs';
-const testRoot=join(tmpdir(),'cortico-majsoul-tests');mkdirSync(testRoot,{recursive:true});
+const testRoot=join(await realpath(tmpdir()),'cortico-majsoul-tests');mkdirSync(testRoot,{recursive:true});
 import { chromium } from 'playwright-core';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { action, decode, encode, envelope, request, unpack, xorAction, type Data } from '../src/protocol.ts';
@@ -510,3 +510,4 @@ test('real browser plus local game server: guarded send, ack, authoritative acti
     await game.stop(); await context.close();
   }
 });
+
