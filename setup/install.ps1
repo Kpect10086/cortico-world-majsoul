@@ -5,6 +5,9 @@
     [switch]$RestartCortico
 )
 $ErrorActionPreference = 'Stop'
+$windowsPlatform = [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT
+$nodeCommand = if ($windowsPlatform) { 'node.exe' } else { 'node' }
+$npmCommand = if ($windowsPlatform) { 'npm.cmd' } else { 'npm' }
 $extensionDir = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $FrameworkDir = [IO.Path]::GetFullPath($FrameworkDir)
 $DeploymentDir = [IO.Path]::GetFullPath($DeploymentDir)
@@ -16,22 +19,22 @@ function Read-Lifecycle { Invoke-RestMethod -Uri "$ConsoleUrl/api/run/lifecycle"
 function Post-Console($path, $body) { Invoke-RestMethod -Uri "$ConsoleUrl$path" -Method Post -ContentType 'application/json' -Body ($body | ConvertTo-Json -Depth 8 -Compress) -TimeoutSec 90 }
 try { $lifecycle = Read-Lifecycle } catch { throw ('无法连接 Cortico 控制台，请先启动 Cortico 并检查地址：' + $ConsoleUrl) }
 if ($lifecycle.deployment -ne $expectedDeployment) { throw '当前控制台不是指定部署，未修改其他 bot。' }
-if (-not (Get-Command node.exe -ErrorAction SilentlyContinue)) { throw '请安装 Node.js 22.15 或以上，再重新打开入口。' }
-$nodeVersion = & node.exe -p 'process.versions.node'
-if ($LASTEXITCODE -ne 0 -or [version]$nodeVersion -lt [version]'22.15.0') { throw '启动入口需要 Node.js 22.15 或以上，请更新后重新打开终端。' }
-& node.exe -e "try { for (const name of ['playwright-core', 'protobufjs', '@kobalab/majiang-core']) require.resolve(name, { paths: [process.argv[1]] }) } catch { process.exit(1) }" $extensionDir
+if (-not (Get-Command $nodeCommand -ErrorAction SilentlyContinue)) { throw '请安装 Node.js 22.16 或以上，再重新打开入口。' }
+$nodeVersion = & $nodeCommand -p 'process.versions.node'
+if ($LASTEXITCODE -ne 0 -or [version]$nodeVersion -lt [version]'22.16.0') { throw '启动入口需要 Node.js 22.16 或以上，请更新后重新打开终端。' }
+& $nodeCommand -e "try { for (const name of ['playwright-core', 'protobufjs', '@kobalab/majiang-core']) require.resolve(name, { paths: [process.argv[1]] }) } catch { process.exit(1) }" $extensionDir
 if ($LASTEXITCODE -ne 0) {
-    if (-not (Get-Command npm.cmd -ErrorAction SilentlyContinue)) { throw '缺少npm，请安装包含npm的Node.js。' }
+    if (-not (Get-Command $npmCommand -ErrorAction SilentlyContinue)) { throw '缺少npm，请安装包含npm的Node.js。' }
     Write-Host '正在安装扩展运行依赖……'
     Push-Location -LiteralPath $extensionDir
     try {
-        & npm.cmd install --omit=dev --ignore-scripts --no-audit --no-fund
+        & $npmCommand install --omit=dev --ignore-scripts --no-audit --no-fund
         if ($LASTEXITCODE -ne 0) { throw '扩展依赖安装失败，未启用自动操作。' }
     } finally { Pop-Location }
 }
 if (-not (Test-Path -LiteralPath (Join-Path $extensionDir 'assets\liqi.json'))) {
     Write-Host '正在从雀魂官方准备协议并校验 SHA256……'
-    & node.exe (Join-Path $PSScriptRoot 'fetch-protocol.mjs')
+    & $nodeCommand (Join-Path $PSScriptRoot 'fetch-protocol.mjs')
     if ($LASTEXITCODE -ne 0) { throw '雀魂协议准备失败，未启用自动操作。请检查网络及上方错误信息。' }
 }
 $manifest = Invoke-RestMethod -Uri "$ConsoleUrl/api/webui/manifest" -TimeoutSec 10

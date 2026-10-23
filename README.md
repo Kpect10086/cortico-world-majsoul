@@ -2,7 +2,20 @@
 
 ## 安装与依赖
 
-需要 Windows、Microsoft Edge、Node.js 22.16+、Cortico 0.2.4 / World API 6，以及可用的模型连接和用户自己的雀魂账号。扩展页安装 **cortico-world-majsoul@1.1.1** 后重启。依赖 @kobalab/majiang-core、playwright-core、protobufjs 自动安装；不额外下载整套 Chromium。源码目录首次使用需 npm install，启动器会补装运行依赖。
+需要 Windows 或 Linux 桌面、Edge / Chrome / Chromium、Node.js 22.16+、Cortico 0.2.4 / World API 6，以及可用的模型连接和用户自己的雀魂账号。Linux 启动脚本还需要 PowerShell 7（`pwsh`）。扩展页安装后重启。依赖 @kobalab/majiang-core、playwright-core、protobufjs 自动安装；不额外下载整套 Chromium。源码目录首次使用需 npm install，启动器会补装运行依赖。
+
+Linux 在本包目录运行：
+
+```sh
+npm ci --omit=dev --ignore-scripts
+pwsh -NoProfile -File setup/start-game.ps1 \
+  -FrameworkDir "/path/to/cortico" -DeploymentDir "/path/to/deployment" \
+  -BrowserPath "/usr/bin/chromium" -ObserveOnly
+```
+
+`-BrowserPath` 可省略，按顺序寻找系统 Edge、Chromium、Chrome。启动时使用部署独立浏览器资料目录和仅本机调试端口；不会接管占用同一端口的其他浏览器。需要登录和游戏窗口的正常图形桌面，首次先保留 `-ObserveOnly` 验证连接，再通过面板允许操作。Windows 的 `start-majsoul.cmd` 入口继续可用。
+
+本次验证环境是 Windows：真实 Edge 加本机模拟游戏服务器已通过；Linux 启动分支及真实雀魂游戏尚需实机验收。`.github/workflows/ci.yml` 提供 Ubuntu / Windows、Node 22.22.2 / 24 验证矩阵；加入工作流不代表远程流水线已运行。测试会运行全部 `tests/*.test.ts`，Linux 默认使用 Chrome；其他浏览器可通过 `MAJSOUL_BROWSER_PATH=/usr/bin/chromium npm test` 指定。测试也需要 `pwsh`（Windows 可用系统 PowerShell）。
 
 已附官方公开协议 assets/liqi.json，默认无需额外下载；缺失时启动器调用 setup/fetch-protocol.mjs 从官方获取并核对固定 SHA256。游戏升级导致协议不符时需更新扩展，不绕过版本或校验。已编译的面板随包提供。
 

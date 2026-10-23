@@ -261,11 +261,12 @@ test('duplicate actions are ignored and missing steps fail before state mutation
   assert.deepEqual(state.snapshot(), after);
 });
 
-test('Windows launcher verifies deployment and reuses an existing connected game without starting processes', async () => {
+test('launcher verifies deployment and reuses an existing connected game without starting processes', async () => {
   const directory = await mkdtemp(join(testRoot,'launcher-test-'));
   const deployment = join(directory, 'deployment');
   const digest = createHash('sha256').update(join(deployment, 'data')).digest('hex');
   const launcher = fileURLToPath(new URL('../setup/start-game.ps1', import.meta.url));
+  const packageVersion = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')).version;
   const fixture = join(directory, 'fixture.ps1');
   await writeFile(fixture, `
 param([switch]$ObserveOnly, [switch]$WrongDeployment)
@@ -277,7 +278,7 @@ function Invoke-RestMethod {
   $path = ([Uri]$Uri).AbsolutePath
   if ($path -eq '/api/run/lifecycle') { return @{ deployment = $(if ($WrongDeployment) { 'other' } else { '${digest}' }); ready = $true; bootId = 'fixture' } }
   if ($path -eq '/api/webui/manifest') { return @{ providers = @(@{ id = 'world:majsoul'; availability = 'active' }) } }
-  if ($path -eq '/api/extensions') { return @{ dir = '${directory}'; extensions = @(@{ name = 'cortico-world-majsoul'; spec = 'link:${fileURLToPath(new URL('..',import.meta.url))}'; installedVersion = '1.1.1'; state = 'active' }) } }
+  if ($path -eq '/api/extensions') { return @{ dir = '${directory}'; extensions = @(@{ name = 'cortico-world-majsoul'; spec = 'link:${fileURLToPath(new URL('..',import.meta.url))}'; installedVersion = '${packageVersion}'; state = 'active' }) } }
   if ($path -eq '/api/worlds') { return @{ worlds = @(@{ id = 'majsoul'; prefixDrifted = $true }) } }
   if ($path -eq '/api/webui/providers/world%3Amajsoul/panels/game/state' -or $path -eq '/api/webui/providers/world:majsoul/panels/game/state') { return @{ connected = $true } }
   if ($Method -eq 'Post' -and $path -in @('/api/config', '/api/worlds/visibility', '/api/session/reload-prefix', '/api/run/resume')) {
@@ -289,17 +290,17 @@ function Invoke-RestMethod {
 $global:taskCalls | ConvertTo-Json -Depth 8 -Compress
 `, 'utf8');
   for (const observeOnly of [false, true]) {
-    const result = spawnSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', fixture, ...(observeOnly ? ['-ObserveOnly'] : [])], { encoding: 'utf8', timeout: 10000 });
+    const result = spawnSync(process.platform === 'win32' ? 'powershell.exe' : 'pwsh', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', fixture, ...(observeOnly ? ['-ObserveOnly'] : [])], { encoding: 'utf8', timeout: 10000 });
     assert.equal(result.status, 0, result.stderr);
     const calls = JSON.parse(result.stdout.trim().split(/\r?\n/).at(-1)!);
     assert.equal(calls.find((entry: Data) => entry.path === '/api/config').body.values['worlds.majsoul.allowActions'], !observeOnly);
     assert.equal(calls.some((entry: Data) => entry.path === '/api/run/resume'), !observeOnly);
   }
-  const mismatch = spawnSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', fixture, '-WrongDeployment'], { encoding: 'utf8', timeout: 10000 });
+  const mismatch = spawnSync(process.platform === 'win32' ? 'powershell.exe' : 'pwsh', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', fixture, '-WrongDeployment'], { encoding: 'utf8', timeout: 10000 });
   assert.notEqual(mismatch.status, 0);
 });
 
-test('real Edge plus local game server: guarded send, ack, authoritative action, rejection, timeout, cancellation, hot permission, reconnect', { timeout: 60000 }, async () => {
+test('real browser plus local game server: guarded send, ack, authoritative action, rejection, timeout, cancellation, hot permission, reconnect', { timeout: 60000 }, async (t) => {
   const directory = await mkdtemp(join(testRoot,'browser-test-'));
   let peer: WebSocket | undefined, step = 0, mode = 'normal', submitted = 0, playerCount = 4, gateway = '/game-gateway', authenticate = true, pageLoads = 0, roundStartedAt = 0;
   const auth = request('.lq.FastTest.authGame', 1, { account_id: 101, token: 'private-auth-token' });
@@ -341,7 +342,9 @@ test('real Edge plus local game server: guarded send, ack, authoritative action,
   });
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   const address = server.address() as { port: number }, url = `http://127.0.0.1:${address.port}/`;
-  const context = await chromium.launchPersistentContext(join(directory, 'profile'), { channel: 'msedge', headless: true, args: ['--remote-debugging-port=0', '--remote-debugging-address=127.0.0.1'] });
+  t.after(async () => { for (const client of sockets.clients) client.terminate(); sockets.close(); await new Promise<void>(resolve => server.close(() => resolve())); });
+  const browserOptions = process.env.MAJSOUL_BROWSER_PATH ? { executablePath: process.env.MAJSOUL_BROWSER_PATH } : { channel: process.platform === 'win32' ? 'msedge' : 'chrome' };
+  const context = await chromium.launchPersistentContext(join(directory, 'profile'), { ...browserOptions, headless: true, args: ['--remote-debugging-port=0', '--remote-debugging-address=127.0.0.1'] });
   const port = (await readFile(join(directory, 'profile', 'DevToolsActivePort'), 'utf8')).split('\n')[0];
   const cfg = { ...MAJSOUL_DEFAULTS, allowActions: true, browserPort: Number(port), gameUrl: url, newRoundDelayMs: 0 };
   const permittedUrls = (MAJSOUL_CONFIG_GROUP.schema.properties!['worlds.majsoul.gameUrl'] as { enum: string[] }).enum;
@@ -505,8 +508,5 @@ test('real Edge plus local game server: guarded send, ack, authoritative action,
   } finally {
     permittedUrls.splice(permittedUrls.indexOf(url), 1);
     await game.stop(); await context.close();
-    for (const client of sockets.clients) client.terminate();
-    await new Promise<void>(resolve => sockets.close(() => resolve()));
-    await new Promise<void>(resolve => server.close(() => resolve()));
   }
 });

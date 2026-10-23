@@ -2,6 +2,7 @@
     [string]$FrameworkDir,
     [string]$DeploymentDir,
     [string]$ConsoleUrl = 'http://127.0.0.1:7788',
+    [string]$BrowserPath,
     [switch]$ObserveOnly
 )
 $ErrorActionPreference = 'Stop'
@@ -32,17 +33,38 @@ $browserPort = [int]$gameConfig.'worlds.majsoul.browserPort'
 if ($browserPort -lt 1024 -or $browserPort -gt 65535) { throw '专用浏览器端口配置无效。' }
 $gameProfileDir = [IO.Path]::GetFullPath((Join-Path $DeploymentDir 'data\majsoul\edge-profile'))
 New-Item -ItemType Directory -Force -Path $gameProfileDir | Out-Null
-$edgePaths = @("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe", "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe", "$env:LOCALAPPDATA\Microsoft\Edge\Application\msedge.exe")
-$edgeExe = $edgePaths | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
-if (-not $edgeExe) { throw '没有找到 Microsoft Edge，请安装后再打开入口。' }
-$owner = Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" | Where-Object { $_.CommandLine -and $_.CommandLine.Contains('--user-data-dir="' + $gameProfileDir + '"') -and $_.CommandLine -match ('--remote-debugging-port=' + $browserPort + '(\s|$)') }
+$windowsPlatform = [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT
+if ($BrowserPath) { $edgeExe = (Get-Command $BrowserPath -ErrorAction Stop).Source }
+elseif ($windowsPlatform) {
+    $edgePaths = @("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe", "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe", "$env:LOCALAPPDATA\Microsoft\Edge\Application\msedge.exe")
+    $edgeExe = $edgePaths | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+} else {
+    $edgeExe = @('microsoft-edge', 'microsoft-edge-stable', 'chromium', 'chromium-browser', 'google-chrome', 'google-chrome-stable') | ForEach-Object { (Get-Command $_ -ErrorAction SilentlyContinue).Source } | Select-Object -First 1
+}
+if (-not $edgeExe) { throw '没有找到 Edge / Chromium / Chrome。请安装浏览器或传入 -BrowserPath。' }
+if ($windowsPlatform) {
+    $owner = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and $_.CommandLine.Contains('--user-data-dir="' + $gameProfileDir + '"') -and $_.CommandLine -match ('--remote-debugging-port=' + $browserPort + '(\s|$)') }
+} else {
+    $owner = Get-ChildItem /proc -Directory | Where-Object Name -Match '^\d+$' | ForEach-Object {
+        try {
+            $processArgs = [IO.File]::ReadAllText((Join-Path $_.FullName 'cmdline')).Split([char]0)
+            if ($processArgs -contains "--user-data-dir=$gameProfileDir" -and $processArgs -contains "--remote-debugging-port=$browserPort") { $_.Name }
+        } catch { }
+    }
+}
 $debugUrl = "http://127.0.0.1:$browserPort/json/version"
 $debugReady = $false
 try { $debugReady = [bool](Invoke-RestMethod -Uri $debugUrl -TimeoutSec 2).webSocketDebuggerUrl } catch {}
 if ($debugReady -and -not $owner) { throw '调试端口属于其他浏览器，未接管它。请更换雀魂 World 的 browserPort。' }
 if (-not $owner) {
     $arguments = '--user-data-dir="' + $gameProfileDir + '" --remote-debugging-address=127.0.0.1 --remote-debugging-port=' + $browserPort + ' --no-first-run --no-default-browser-check --new-window about:blank'
-    Start-Process -FilePath $edgeExe -ArgumentList $arguments -WindowStyle Normal
+    if ($windowsPlatform) { Start-Process -FilePath $edgeExe -ArgumentList $arguments -WindowStyle Normal }
+    else {
+        $browserStartInfo = [Diagnostics.ProcessStartInfo]::new($edgeExe)
+        $browserStartInfo.UseShellExecute = $false
+        foreach ($argument in @("--user-data-dir=$gameProfileDir", '--remote-debugging-address=127.0.0.1', "--remote-debugging-port=$browserPort", '--no-first-run', '--no-default-browser-check', '--new-window', 'about:blank')) { $browserStartInfo.ArgumentList.Add($argument) }
+        [Diagnostics.Process]::Start($browserStartInfo) | Out-Null
+    }
 }
 $deadline = (Get-Date).AddSeconds(20)
 do {

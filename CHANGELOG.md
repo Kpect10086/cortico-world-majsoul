@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.2 — 2026-10-24
+- 增加 Linux 包安装与 PowerShell 7 启动入口，自动发现 Edge / Chromium / Chrome，支持 `-BrowserPath`。
+- 启动器的 Node.js 最低版本统一为 22.16，保留独立浏览器资料目录与调试端口归属检查。
+- `npm test` 执行所有牌局、文本渲染和帧率测试；新增 Ubuntu / Windows CI，测试浏览器可由 `MAJSOUL_BROWSER_PATH` 指定。
+
 ## 1.1.1
 
 - 同步公开状态渲染、帧率限制、语音决策配合及重连回执更新。
